@@ -1,0 +1,178 @@
+﻿***********************************************-----------TXN LOGS----------**********************************************
+SELECT LOGTIME,RRN, REQUEST_RRN,mno_id, src_ica, SERVICE_CODE,  SRC_MSISDN,trgt_msisdn, txnamt, SE_RESPCODE, DESCRIPTION FROM MODS_TXN_LOGS
+JOIN OPS_RESPONSE_MESSAGES ON SE_RESPCODE = RESPONSE_CODE
+WHERE LOGTIME BETWEEN TO_DATE('2017-02-27 00:00:00','YYYY-MM-DD HH24:MI:SS') AND TO_DATE('2017-02-27 23:59:59','YYYY-MM-DD HH24:MI:SS')
+AND SERVICE_CODE IN 
+('SMDOM', 'SMDOMR')
+and (src_msisdn in
+('00201019315444')
+OR TRGT_MSISDN IN
+('00201019315444')
+)
+order by LOGTIME asc;
+
+***********************************************-----------TRACE LOGS----------**********************************************
+SELECT rrn, direction, channel_name, content_type, payload, timestamp, logtime FROM MODS_TRACE_LOGS
+WHERE RRN IN
+('000030887661','000030887803')
+order by RRN,timestamp asc;
+********************************************************************************************************************************************
+
+***********************************************-----------TRACE LOGS with RRN in TXN LOGS----------**********************************************
+SELECT RRN, DIRECTION, CHANNEL_NAME, CONTENT_TYPE, PAYLOAD, TIMESTAMP, LOGTIME FROM MODS_TRACE_LOGS
+WHERE RRN IN(
+--SELECT LOGTIME,LOCAL_ADDRESS,RRN, REQUEST_RRN,MNO_ID, SRC_ICA,SERVICE_CODE,  SRC_MSISDN,TRGT_MSISDN, TXNAMT, SE_RESPCODE, DESCRIPTION FROM MODS_TXN_LOGS
+select rrn from mods_txn_logs
+JOIN OPS_RESPONSE_MESSAGES ON SE_RESPCODE = RESPONSE_CODE
+WHERE LOGTIME BETWEEN TO_DATE('2017-03-09 00:00:00','YYYY-MM-DD HH24:MI:SS') AND TO_DATE('2017-03-09 23:59:59','YYYY-MM-DD HH24:MI:SS')
+AND SERVICE_CODE IN 
+('VALLOC')
+AND (SRC_MSISDN IN
+('00201118131649')
+OR TRGT_MSISDN IN
+('00201118131649') 
+)
+--ORDER BY LOGTIME ASC;
+)
+order by timestamp,rrn asc;
+********************************************************************************************************************************************
+
+***********************************************-----------Check Date----------**********************************************
+SELECT * FROM MODS_TXN_LOGS PARTITION(P_20160908)
+WHERE SE_RESPCODE = '1996'
+order by logtime desc;
+********************************************************************************************************************************************
+
+##############
+ENCRYPTION
+sudo /bin/sh /root/.gnupg/GPG_SCRIPT/mfs_db_spf_encryption.sh mfs_sftp mpg_user oinstall /u01/mpg_user/REPORTS
+sudo /bin/sh /root/.gnupg/GPG_SCRIPT/mfs_db_spf_encryption.sh mfs_sftp mpg_user oinstall /u01/mpg_user/REPORTS/MINUTRADE
+sudo /bin/sh /root/.gnupg/GPG_SCRIPT/mfs_db_spf_encryption.sh mfs_sftp mpg_user oinstall /u01/mpg_user/scripts/BRJ_DTRF_DARF/OUTPUT/20170314
+##############
+
+##############
+ACQUIRING REPORT (MERCHBATCH, LISTOUTX, LISTINEX)
+Acquiring CWEB
+cd /apps/prd/data/ext/CADENCIE/Reports
+ls -lrt | grep report_name
+##############
+
+########### ACTIVE BASE ################
+SELECT DISTINCT SRC_MSISDN FROM MODS_TXN_LOGS
+WHERE LOGTIME BETWEEN TO_DATE('2016-06-01 00:00:00','YYYY-MM-DD HH24:MI:SS') AND TO_DATE('2016-09-30 23:59:59','YYYY-MM-DD HH24:MI:SS')
+AND SE_RESPCODE = '0000'
+AND SRC_ICA='14041'
+AND SERVICE_CODE IN (
+SELECT SERVICE_CODE FROM MPG_SERVICES
+WHERE SERVICE_TYPE ='FIN'
+AND SERVICE_CODE !='CSINPOI'
+--AND MNO_ID='VODAFONE'
+)
+AND SRC_MSISDN IN 
+(
+SELECT USER_ID FROM MPG_ACCOUNTS@OPSVIEWER_MPGUSER.SMART.COM.PH
+WHERE ACCOUNT_STATUS = 'ACT'
+)
+UNION
+SELECT DISTINCT TRGT_MSISDN FROM MODS_TXN_LOGS
+WHERE LOGTIME BETWEEN TO_DATE('2016-06-01 00:00:00','YYYY-MM-DD HH24:MI:SS') AND TO_DATE('2016-09-30 23:59:59','YYYY-MM-DD HH24:MI:SS')
+and se_respcode = '0000'
+AND SERVICE_CODE ='CSINPOI'
+and TRGT_ICA='14041'
+AND trgt_MSISDN IN 
+(
+SELECT USER_ID FROM MPG_ACCOUNTS@OPSVIEWER_MPGUSER.SMART.COM.PH
+WHERE ACCOUNT_STATUS = 'ACT'
+)
+;
+####################################
+
+### FORMAT IN CHECKING
+while true; do clear; echo "DTRF Generation"; date; ps -ef | grep exec_mpg_dtrf_generationCR87.sh; sleep 5; done
+
+
+### Check for ICA
+
+--CHECK ICA
+select msisdn,ica from mpg_funding_accts a, mpg_fund_acct_mapping b, mpg_subscribers c
+where a.fund_acct_id=b.fund_acct_id
+AND B.SUBS_ID=C.SUBS_ID
+and msisdn='00201144886660';
+
+
+select ica,count(user_id) from mods_txn_logs a, MPG_MERCHANTS@OPSVIEWER_OPSVIEWER.SMART.COM.PH b
+--where trunc(logtime)='10-OCT-2016'
+WHERE LOGTIME BETWEEN TO_DATE('2016-06-01 00:00:00','YYYY-MM-DD HH24:MI:SS') AND TO_DATE('2016-09-30 23:59:59','YYYY-MM-DD HH24:MI:SS')
+and service_code='CHGPIN'
+and a.src_msisdn=b.user_id
+and ICA in
+('16851',
+'17569',
+'17162',
+'8623',
+'17021',
+'16719')
+group by ica;
+
+mpg_clients -> check type of OCREG
+####################################
+
+### USING PARTITION
+SELECT LOGTIME,RRN, REQUEST_RRN, SERVICE_CODE,  SRC_MSISDN,trgt_msisdn, SE_RESPCODE,txnamt, DESCRIPTION FROM MODS_TXN_LOGS partition(P_20161029)
+JOIN OPS_RESPONSE_MESSAGES ON SE_RESPCODE = RESPONSE_CODE
+
+
+####################################
+Copying from DBNET to IPS server
+
+DB 01
+open session for encryption and other for sftp server
+after encryption copy the gpg file to put in SFTP server
+For SFTP server (from DB 01)
+  - cd REPORTS
+  -  sftp ips_user@10.133.168.4
+  - cd OUTBOUND
+  - put "filename"
+  
+####################################
+Checking for 2098 CSIN 
+
+select to_char(logtime,'DD-MON-YYYY') as LOGTIME,service_code,agnt_dist_sva,se_respcode,count(*) from mods_txn_logs@opsviewer_fodsuser.smart.com.ph
+where logtime between to_date('2017-05-22 00:00:00','YYYY-MM-DD HH24:MI:SS') and to_date('2017-05-22 23:59:59','YYYY-MM-DD HH24:MI:SS')
+and se_respcode='2098' group by to_char(logtime,'DD-MON-YYYY'), service_code, agnt_dist_sva, se_respcode;
+
+
+***********************************************-----------ERROR STATS----------**********************************************
+SELECT TO_CHAR(LOGTIME, 'YYYY-MM-DD'),mno_id, SERVICE_CODE, SE_RESPCODE, COUNT (*) FROM MODS_TXN_LOGS
+WHERE LOGTIME BETWEEN TO_DATE('2017-06-10 00:00:00','YYYY-MM-DD HH24:MI:SS') AND TO_DATE('2017-06-12 23:59:59','YYYY-MM-DD HH24:MI:SS')
+AND SERVICE_CODE = 'MTOP'
+AND SE_RESPCODE = '5465'
+GROUP BY TO_CHAR(LOGTIME, 'YYYY-MM-DD'), mno_id, SERVICE_CODE, SE_RESPCODE
+order by 1 desc;
+********************************************************************************************************************************************
+***********************************************-----------Getting PAN----------**********************************************
+##FOR SUBSCRIBERS##
+select msisdn, rta_fund_pan from mpg_funding_accts@opsviewer_mpguser.smart.com.ph a, mpg_fund_acct_mapping@opsviewer_mpguser.smart.com.ph b, mpg_subscribers@opsviewer_mpguser.smart.com.ph c
+where a.fund_acct_id=b.fund_acct_id
+AND B.SUBS_ID=C.SUBS_ID
+and  msisdn='00201144886660';
+
+##FOR MERCHANTS##
+select user_id, card_pan from mpg_merchants@opsviewer_mpguser.smart.com.ph where user_id = '00201010953003';
+********************************************************************************************************************************************
+***********************************************-----------Checking Transaction per Hour----------**********************************************
+
+select to_char(logtime,'DD-MON-YYYY') as LOGTIME,service_code,se_respcode,count(*) from mods_txn_logs
+join ops_response_messages on se_respcode = response_code
+where logtime between to_date('2017-07-13 01:00:00','YYYY-MM-DD HH24:MI:SS') and to_date('2017-07-13 01:59:59','YYYY-MM-DD HH24:MI:SS')
+group by to_char(logtime,'DD-MON-YYYY'), service_code, agnt_dist_sva, se_respcode
+order by 3 desc
+;
+********************************************************************************************************************************************
+
+***********************************************-----------Checking Transaction per Hour----------**********************************************
+index=aws-ods-eps-txn-logs 1b726147-5db5-4353-9fa0-8363f1509bfb | sort-_time 
+index=checkout-summary 1b726147-5db5-4353-9fa0-8363f1509bfb | sort-_time 
+************************************************************************************************************************************************
+
+
